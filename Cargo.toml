@@ -1,0 +1,12 @@
+[package]
+name = "simplecss"
+version = "0.1.0"
+authors = ["Reizner Evgeniy <razrfalcon@gmail.com>"]
+license = "MPL-2.0"
+readme = "README.md"
+description = "A very simple CSS 2.1 tokenizer."
+repository = "https://github.com/RazrFalcon/simplecss"
+keywords = ["css", "parser", "tokenizer"]
+
+[lib]
+doctest = false
