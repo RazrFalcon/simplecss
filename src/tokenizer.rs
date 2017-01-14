@@ -4,7 +4,7 @@
 
 use stream;
 use stream::Stream;
-use error::{Error, ErrorPos};
+use error::Error;
 
 /// CSS combinator.
 #[derive(PartialEq,Debug)]
@@ -132,8 +132,8 @@ impl<'a> Tokenizer<'a> {
     }
 
     /// Returns a current position in the text.
-    pub fn gen_curr_pos(&self) -> ErrorPos {
-        self.stream.gen_error_pos()
+    pub fn pos(&self) -> usize {
+        self.stream.pos()
     }
 
     /// Parses a next token.

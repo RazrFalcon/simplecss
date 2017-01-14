@@ -46,7 +46,8 @@ Simple
 
 ```text
 * { color : red }
-| | |           |
+| | |           ||
+| | |           |+- Token::EndOfStream
 | | |           +- Token::BlockEnd
 | | +- Token::Declaration("color", "red")
 | +- Token::BlockStart
@@ -57,7 +58,8 @@ Complex
 
 ```text
 div#x:first-letter em[id] + .hh1 { color : red }
-|  | |            || |    | |    | |           |
+|  | |            || |    | |    | |           ||
+|  | |            || |    | |    | |           |+- Token::EndOfStream
 |  | |            || |    | |    | |           +- Token::BlockEnd
 |  | |            || |    | |    | +- Token::Declaration("color", "red")
 |  | |            || |    | |    +- Token::BlockStart
