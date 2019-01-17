@@ -189,11 +189,11 @@ impl<'a> Stream<'a> {
         Err(self.gen_end_of_stream_error())
     }
 
-    pub fn length_to_either(&self, c1: u8, c2: u8) -> Result<usize, Error> {
+    pub fn length_to_either(&self, search_chars: &[u8]) -> Result<usize, Error> {
         let mut n = 0;
         while self.pos + n != self.end {
             let c = self.get_char_raw(self.pos + n);
-            if c == c1 || c == c2 {
+            if search_chars.contains(&c) {
                 return Ok(n);
             } else {
                 n += 1;

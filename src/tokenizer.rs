@@ -96,6 +96,7 @@ pub enum Token<'a> {
 enum State {
     Rule,
     Declaration,
+    DeclarationRule,
 }
 
 /// CSS tokenizer.
@@ -155,6 +156,7 @@ impl<'a> Tokenizer<'a> {
         match self.state {
             State::Rule         => self.consume_rule(),
             State::Declaration  => self.consume_declaration(),
+            State::DeclarationRule => self.consume_declaration(),
         }
     }
 
@@ -313,11 +315,25 @@ impl<'a> Tokenizer<'a> {
 
         match self.stream.curr_char_raw() {
             b'}' => {
-                self.state = State::Rule;
+                if self.state == State::DeclarationRule {
+                    self.state = State::Declaration;
+                } else if self.state == State::Declaration {
+                    self.state = State::Rule;
+                }
                 self.stream.advance_raw(1);
                 self.stream.skip_spaces();
                 return Ok(Token::BlockEnd);
-            }
+            },
+            b'{' => {
+                if self.state == State::Rule {
+                    self.state = State::Declaration;
+                } else if self.state == State::Declaration {
+                    self.state = State::DeclarationRule;
+                }
+                self.stream.advance_raw(1);
+                self.stream.skip_spaces();
+                return Ok(Token::BlockStart);
+            },
             b'/' => {
                 if try!(self.consume_comment()) {
                     return self.parse_next();
@@ -326,13 +342,21 @@ impl<'a> Tokenizer<'a> {
                 }
             }
             _ => {
-                let name = try!(self.consume_ident());
+                let name = self.consume_ident()?;
 
                 self.stream.skip_spaces();
 
-                if try!(self.stream.is_char_eq(b'/')) {
+                if self.stream.is_char_eq(b'/')? {
                     if !try!(self.consume_comment()) {
                         return Err(Error::UnknownToken(self.stream.gen_error_pos()));
+                    }
+                }
+
+                if self.stream.is_char_eq(b'{')? {
+                    if name.is_empty() {
+                        return Err(Error::UnknownToken(self.stream.gen_error_pos()));
+                    } else {
+                        return Ok(Token::DeclarationStr(name));
                     }
                 }
 
@@ -345,7 +369,7 @@ impl<'a> Tokenizer<'a> {
                     }
                 }
 
-                let len = self.stream.length_to_either(b';', b'}')?;
+                let len = self.stream.length_to_either(&[b';', b'}'])?;
 
                 if len == 0 {
                     return Err(Error::UnknownToken(self.stream.gen_error_pos()));
@@ -363,7 +387,7 @@ impl<'a> Tokenizer<'a> {
                     self.stream.skip_spaces();
                 }
 
-                return Ok(Token::Declaration(name, value));
+                Ok(Token::Declaration(name, value))
             }
         }
     }
