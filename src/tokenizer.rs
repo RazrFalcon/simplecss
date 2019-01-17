@@ -77,6 +77,15 @@ pub enum Token<'a> {
     ///
     /// https://www.w3.org/TR/CSS21/syndata.html#declaration
     Declaration(&'a str, &'a str),
+    /// `@` rule (excluding the `@` sign itself). The content is not parsed,
+    /// for example `@keyframes mymove` = `AtRule("keyframes"), AtStr("mymove")`.
+    AtRule(&'a str),
+    /// Raw Str inside of block
+    DeclarationStr(&'a str),
+    /// String following an @rule
+    AtStr(&'a str),
+    /// Same as PseudoClass, but with two colons (`::thing`).
+    DoublePseudoClass { selector: &'a str, value: Option<&'a str> },
     /// End of stream
     ///
     /// Parsing is finished.
@@ -94,6 +103,7 @@ pub struct Tokenizer<'a> {
     stream: Stream<'a>,
     state: State,
     after_selector: bool,
+    has_at_rule: bool,
     at_start: bool,
 }
 
@@ -104,6 +114,7 @@ impl<'a> Tokenizer<'a> {
             stream: Stream::new(text.as_bytes()),
             state: State::Rule,
             after_selector: false,
+            has_at_rule: false,
             at_start: true,
         }
     }
@@ -120,6 +131,7 @@ impl<'a> Tokenizer<'a> {
             stream: Stream::new_bound(text.as_bytes(), start, end),
             state: State::Rule,
             after_selector: false,
+            has_at_rule: false,
             at_start: true,
         }
     }
@@ -149,32 +161,40 @@ impl<'a> Tokenizer<'a> {
     fn consume_rule(&mut self) -> Result<Token<'a>, Error> {
         match self.stream.curr_char_raw() {
             b'@' => {
-                return Err(Error::UnsupportedToken(self.stream.gen_error_pos()));
+                self.after_selector = true;
+                self.has_at_rule = true;
+                self.stream.advance_raw(1);
+                let s = self.consume_ident()?;
+                return Ok(Token::AtRule(s));
             }
             b'#' => {
                 self.after_selector = true;
+                self.has_at_rule = false;
                 self.stream.advance_raw(1);
                 let s = try!(self.consume_ident());
                 return Ok(Token::IdSelector(s));
             }
             b'.' => {
                 self.after_selector = true;
+                self.has_at_rule = false;
                 self.stream.advance_raw(1);
                 let s = try!(self.consume_ident());
                 return Ok(Token::ClassSelector(s));
             }
             b'*' => {
                 self.after_selector = true;
+                self.has_at_rule = false;
                 self.stream.advance_raw(1);
                 self.stream.skip_spaces();
                 return Ok(Token::UniversalSelector);
             }
             b':' => {
                 self.after_selector = true;
+                self.has_at_rule = false;
                 self.stream.advance_raw(1);
                 let s = try!(self.consume_ident());
 
-                if self.stream.length_to(b'(') == Ok(0) {
+                if self.stream.curr_char() == Ok(b'(') {
                     // Item is a thing()
                     self.stream.advance_raw(1); // (
                     let inner_len = self.stream.length_to(b')')?;
@@ -187,6 +207,7 @@ impl<'a> Tokenizer<'a> {
             }
             b'[' => {
                 self.after_selector = true;
+                self.has_at_rule = false;
                 self.stream.advance_raw(1);
                 let len = try!(self.stream.length_to(b']'));
                 let s = self.stream.read_raw_str(len);
@@ -196,12 +217,14 @@ impl<'a> Tokenizer<'a> {
             }
             b',' => {
                 self.after_selector = false;
+                self.has_at_rule = false;
                 self.stream.advance_raw(1);
                 self.stream.skip_spaces();
                 return Ok(Token::Comma);
             }
             b'{' => {
                 self.after_selector = false;
+                self.has_at_rule = false;
                 self.state = State::Declaration;
                 self.stream.advance_raw(1);
                 return Ok(Token::BlockStart);
@@ -209,6 +232,7 @@ impl<'a> Tokenizer<'a> {
             b'>' => {
                 if self.after_selector {
                     self.after_selector = false;
+                    self.has_at_rule = false;
                     self.stream.advance_raw(1);
                     self.stream.skip_spaces();
                     return Ok(Token::Combinator(Combinator::GreaterThan));
@@ -219,6 +243,7 @@ impl<'a> Tokenizer<'a> {
             b'+' => {
                 if self.after_selector {
                     self.after_selector = false;
+                    self.has_at_rule = false;
                     self.stream.advance_raw(1);
                     self.stream.skip_spaces();
                     return Ok(Token::Combinator(Combinator::Plus));
@@ -241,24 +266,35 @@ impl<'a> Tokenizer<'a> {
                         return self.parse_next();
                     }
 
-                    return match try!(self.stream.curr_char()) {
-                        b'{' | b'/' | b'>' | b'+' | b'*' => self.parse_next(),
+                    match self.stream.curr_char()? {
+                        b'{' | b'/' | b'>' | b'+' | b'*' => { return self.parse_next(); },
                         _ => {
                             self.after_selector = false;
-                            Ok(Token::Combinator(Combinator::Space))
+                            if !self.has_at_rule {
+                                return Ok(Token::Combinator(Combinator::Space));
+                            }
                         }
-                    };
+                    }
                 }
 
-                self.after_selector = true;
                 let s = try!(self.consume_ident());
-                return Ok(Token::TypeSelector(s));
+                let token_type = if self.has_at_rule {
+                    self.has_at_rule = true;
+                    Token::AtStr(s)
+                } else {
+                    self.has_at_rule = false;
+                    Token::TypeSelector(s)
+                };
+
+                self.after_selector = true;
+                return Ok(token_type);
             }
         }
     }
 
     fn consume_declaration(&mut self) -> Result<Token<'a>, Error> {
         self.stream.skip_spaces();
+        self.has_at_rule = false;
 
         match self.stream.curr_char_raw() {
             b'}' => {
@@ -288,13 +324,14 @@ impl<'a> Tokenizer<'a> {
                 self.stream.advance_raw(1); // :
                 self.stream.skip_spaces();
 
-                if try!(self.stream.is_char_eq(b'/')) {
+                if self.stream.is_char_eq(b'/')? {
                     if !try!(self.consume_comment()) {
                         return Err(Error::UnknownToken(self.stream.gen_error_pos()));
                     }
                 }
 
-                let len = try!(self.stream.length_to_either(b';', b'}'));
+                let len = self.stream.length_to_either(b';', b'}')?;
+
                 if len == 0 {
                     return Err(Error::UnknownToken(self.stream.gen_error_pos()));
                 }

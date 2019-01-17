@@ -277,6 +277,12 @@ test_selectors!(complex_selectors_25,
     Token::PseudoClass { selector: "first-line", value: None }
 );
 
+test_selectors!(complex_selectors_26,
+    "@keyframes mymove { color: red }",
+    Token::AtRule("keyframes"),
+    Token::AtStr("mymove")
+);
+
 test_selectors!(attribute_selector_1,
     "[attr=\"test\"] { color: red }",
     Token::AttributeSelector("attr=\"test\"")
@@ -493,9 +499,9 @@ test_err!(invalid_2,
 //     Error::UnknownToken(ErrorPos::new(1, 2))
 // );
 
-test_err!(invalid_4,
+test!(invalid_4,
     "@import",
-    Error::UnsupportedToken(ErrorPos::new(1, 1))
+    Token::AtRule("import")
 );
 
 #[test]
