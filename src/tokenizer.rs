@@ -49,17 +49,10 @@ pub enum Token<'a> {
     /// Pseudo-class
     ///
     /// Value contains ident without `:`.
-    /// We do not validate it in any way.
+    /// Selector: `"nth-child"`, value: The thing between the braces - `Some("3")`
     ///
     /// https://www.w3.org/TR/CSS21/selector.html#pseudo-class-selectors
-    PseudoClass(&'a str),
-    /// Language pseudo-class
-    ///
-    /// Value contains everything between `()`.
-    /// We do not validate it in any way. It can contain any text or even be empty.
-    ///
-    /// https://www.w3.org/TR/CSS21/selector.html#lang
-    LangPseudoClass(&'a str),
+    PseudoClass { selector: &'a str, value: Option<&'a str> },
     /// `Combinator`
     Combinator(Combinator),
     /// Rules separator
@@ -180,15 +173,16 @@ impl<'a> Tokenizer<'a> {
                 self.after_selector = true;
                 self.stream.advance_raw(1);
                 let s = try!(self.consume_ident());
-                if s == "lang" {
-                    try!(self.stream.advance(1)); // (
-                    let len = try!(self.stream.length_to(b')'));
-                    let lang = self.stream.read_raw_str(len);
 
+                if self.stream.length_to(b'(') == Ok(0) {
+                    // Item is a thing()
+                    self.stream.advance_raw(1); // (
+                    let inner_len = self.stream.length_to(b')')?;
+                    let inner = self.stream.read_raw_str(inner_len);
                     self.stream.advance_raw(1); // )
-                    return Ok(Token::LangPseudoClass(lang));
+                    return Ok(Token::PseudoClass { selector: s, value: Some(inner) });
                 } else {
-                    return Ok(Token::PseudoClass(s));
+                    return Ok(Token::PseudoClass { selector: s, value: None });
                 }
             }
             b'[' => {

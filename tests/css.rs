@@ -57,12 +57,12 @@ test_selectors!(selectors_2,
 
 test_selectors!(selectors_3,
     ":first-child { color: red }",
-    Token::PseudoClass("first-child")
+    Token::PseudoClass { selector: "first-child", value: None }
 );
 
 test_selectors!(selectors_4,
     ":lang(fr) { color: red }",
-    Token::LangPseudoClass("fr")
+    Token::PseudoClass { selector: "lang", value: Some("fr") }
 );
 
 test_selectors!(selectors_6,
@@ -113,10 +113,10 @@ test_selectors!(complex_selectors_3,
 test_selectors!(complex_selectors_4,
     "div:after, div:before { color: red; }",
     Token::TypeSelector("div"),
-    Token::PseudoClass("after"),
+    Token::PseudoClass { selector: "after", value: None },
     Token::Comma,
     Token::TypeSelector("div"),
-    Token::PseudoClass("before")
+    Token::PseudoClass { selector: "before", value: None }
 );
 
 test_selectors!(complex_selectors_5,
@@ -128,7 +128,7 @@ test_selectors!(complex_selectors_5,
 test_selectors!(complex_selectors_6,
     ".test:first-letter { color: red; }",
     Token::ClassSelector("test"),
-    Token::PseudoClass("first-letter")
+    Token::PseudoClass { selector: "first-letter", value: None }
 );
 
 test_selectors!(complex_selectors_7,
@@ -170,7 +170,7 @@ test_selectors!(complex_selectors_12,
     "p.test:first-letter { color: red; }",
     Token::TypeSelector("p"),
     Token::ClassSelector("test"),
-    Token::PseudoClass("first-letter")
+    Token::PseudoClass { selector: "first-letter", value: None }
 );
 
 test_selectors!(complex_selectors_13,
@@ -213,7 +213,7 @@ test_selectors!(complex_selectors_18,
     "div#x:first-letter { color: red; }",
     Token::TypeSelector("div"),
     Token::IdSelector("x"),
-    Token::PseudoClass("first-letter")
+    Token::PseudoClass { selector: "first-letter", value: None }
 );
 
 test_selectors!(complex_selectors_19,
@@ -233,22 +233,22 @@ test_selectors!(complex_selectors_20,
     "input[type=\"radio\"]:focus + label { color: red; }",
     Token::TypeSelector("input"),
     Token::AttributeSelector("type=\"radio\""),
-    Token::PseudoClass("focus"),
+    Token::PseudoClass { selector: "focus", value: None },
     Token::Combinator(Combinator::Plus),
     Token::TypeSelector("label")
 );
 
 test_selectors!(complex_selectors_21,
     ":visited:active { color: red; }",
-    Token::PseudoClass("visited"),
-    Token::PseudoClass("active")
+    Token::PseudoClass { selector: "visited", value: None },
+    Token::PseudoClass { selector: "active", value: None }
 );
 
 // it's actually invalid, but we do not validate it
 test_selectors!(complex_selectors_22,
     "p:first-line p, #p1 { color: red; }",
     Token::TypeSelector("p"),
-    Token::PseudoClass("first-line"),
+    Token::PseudoClass { selector: "first-line", value: None },
     Token::Combinator(Combinator::Space),
     Token::TypeSelector("p"),
     Token::Comma,
@@ -264,7 +264,7 @@ test_selectors!(complex_selectors_23,
 test_selectors!(complex_selectors_24,
     "*:active { color: red; }",
     Token::UniversalSelector,
-    Token::PseudoClass("active")
+    Token::PseudoClass { selector: "active", value: None }
 );
 
 test_selectors!(complex_selectors_25,
@@ -274,7 +274,7 @@ test_selectors!(complex_selectors_25,
     Token::TypeSelector("body"),
     Token::Combinator(Combinator::GreaterThan),
     Token::UniversalSelector,
-    Token::PseudoClass("first-line")
+    Token::PseudoClass { selector: "first-line", value: None }
 );
 
 test_selectors!(attribute_selector_1,
