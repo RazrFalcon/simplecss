@@ -594,9 +594,9 @@ test_err!(invalid_15,
     Error::UnknownToken(ErrorPos::new(1, 2))
 );
 
-test_err!(invalid_16,
+test!(invalid_16,
     "::invalidPseudoElement",
-    Error::UnknownToken(ErrorPos::new(1, 2))
+    Token::DoublePseudoClass { selector: "invalidPseudoElement", value: None }
 );
 
 #[test]

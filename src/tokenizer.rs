@@ -192,6 +192,13 @@ impl<'a> Tokenizer<'a> {
                 self.after_selector = true;
                 self.has_at_rule = false;
                 self.stream.advance_raw(1);
+
+                // Whether this selector is a ::selector.
+                let is_double_colon = self.stream.is_char_eq(b':')?;
+                if is_double_colon {
+                    self.stream.advance_raw(1); // consume the second :
+                }
+
                 let s = try!(self.consume_ident());
 
                 if self.stream.curr_char() == Ok(b'(') {
@@ -200,9 +207,17 @@ impl<'a> Tokenizer<'a> {
                     let inner_len = self.stream.length_to(b')')?;
                     let inner = self.stream.read_raw_str(inner_len);
                     self.stream.advance_raw(1); // )
-                    return Ok(Token::PseudoClass { selector: s, value: Some(inner) });
+                    return Ok(if is_double_colon {
+                        Token::DoublePseudoClass { selector: s, value: Some(inner) }
+                    } else {
+                        Token::PseudoClass { selector: s, value: Some(inner) }
+                    });
                 } else {
-                    return Ok(Token::PseudoClass { selector: s, value: None });
+                    return Ok(if is_double_colon {
+                        Token::DoublePseudoClass { selector: s, value: None }
+                    } else {
+                        Token::PseudoClass { selector: s, value: None }
+                    });
                 }
             }
             b'[' => {
