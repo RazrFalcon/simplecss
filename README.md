@@ -1,72 +1,46 @@
-# simplecss
+## simplecss
+[![Build Status](https://travis-ci.org/RazrFalcon/simplecss.svg?branch=master)](https://travis-ci.org/RazrFalcon/simplecss)
+[![Crates.io](https://img.shields.io/crates/v/simplecss.svg)](https://crates.io/crates/simplecss)
+[![Documentation](https://docs.rs/simplecss/badge.svg)](https://docs.rs/simplecss)
 
-A very simple streaming parser/tokenizer for [CSS 2.1](https://www.w3.org/TR/CSS21/)
-data format without heap allocations.
+A simple [CSS 2.1](https://www.w3.org/TR/CSS21/) parser and selector.
+
+This is not a browser-grade CSS parser. If you need one,
+use [cssparser](https://crates.io/crates/cssparser) +
+[selectors](https://crates.io/crates/selectors).
 
 Since it's very simple we will start with limitations:
 
-## Limitations
+### Limitations
+
 - [At-rules](https://www.w3.org/TR/CSS21/syndata.html#at-rules) are not supported.
-
-  `@import`, `@media`, etc. will lead to a parsing error.
-- The ident token must be ASCII only.
-
-  CSS like `#аттр { имя:значение }` will lead to a parsing error.
+  They will be skipped during parsing.
 - Property values are not parsed.
-
-  In CSS like `* { width: 5px }` you will get `width` property with `5px` values as a string.
-- Attribute selector rule is not parsed.
-
-  `[foo~="warning"]` will be parsed as `Token::AttributeSelector("foo~=\"warning\"")`.
-- There are no data validation.
-
-  - Pseudo-class tokens can contain any text, language pseudo-class can contain any text or even none.
-  - Declarations can contain any kind of names and values.
-- All comments will be ignored.
-
-  They didn't have it's own `Token` item.
+  In CSS like `* { width: 5px }` you will get a `width` property with a `5px` value as a string.
 - CDO/CDC comments are not supported.
-- Parser is case sensitive. All keywords should be lowercase.
+- Parser is case sensitive. All keywords must be lowercase.
 - Unicode escape, like `\26`, is not supported.
-- No spec-defined error handling.
 
-  If something will go wrong you will get an error. Parser will not recover an invalid input.
-  [Details](https://www.w3.org/TR/CSS21/syndata.html#rule-sets).
+### Features
 
-## Where to use
-`simplecss` can be useful for parsing a very simple or predefined CSS.
+- Selector matching support.
+- `!import` parsing support.
+- Has a high-level parsers and low-level, zero-allocation tokenizers.
+- No unsafe.
 
-It's tiny, dependency free and pretty fast.
+### License
 
-## Examples
+Licensed under either of
 
-Simple
+- Apache License, Version 2.0
+  ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT license
+  ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
 
-```text
-* { color : red }
-| | |           ||
-| | |           |+- Token::EndOfStream
-| | |           +- Token::BlockEnd
-| | +- Token::Declaration("color", "red")
-| +- Token::BlockStart
-+- Token::UniversalSelector
-```
+at your option.
 
-Complex
+### Contribution
 
-```text
-div#x:first-letter em[id] + .hh1 { color : red }
-|  | |            || |    | |    | |           ||
-|  | |            || |    | |    | |           |+- Token::EndOfStream
-|  | |            || |    | |    | |           +- Token::BlockEnd
-|  | |            || |    | |    | +- Token::Declaration("color", "red")
-|  | |            || |    | |    +- Token::BlockStart
-|  | |            || |    | +- Token::ClassSelector("hh1")
-|  | |            || |    +- Token::Combinator(Combinator::Plus)
-|  | |            || +- Token::AttributeSelector("id")
-|  | |            |+- Token::TypeSelector("em")
-|  | |            +- Token::Combinator(Combinator::Space)
-|  | +- Token::PseudoClass("first-letter")
-|  +- Token::IdSelector("x")
-+- Token::TypeSelector("div")
-```
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.

@@ -1,263 +1,314 @@
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
 use std::str;
 
-use error::{Error, ErrorPos};
+use crate::{Error, TextPos};
 
-/// Streaming interface for `&[u8]` data.
-#[derive(PartialEq,Clone,Copy)]
-pub struct Stream<'a> {
-    text: &'a [u8],
+
+trait CssCharExt {
+    fn is_name_start(&self) -> bool;
+    fn is_name_char(&self) -> bool;
+    fn is_non_ascii(&self) -> bool;
+    fn is_escape(&self) -> bool;
+}
+
+impl CssCharExt for char {
+    #[inline]
+    fn is_name_start(&self) -> bool {
+        match *self {
+            '_' | 'a'...'z' | 'A'...'Z' => true,
+            _ => self.is_non_ascii() || self.is_escape(),
+        }
+    }
+
+    #[inline]
+    fn is_name_char(&self) -> bool {
+        match *self {
+            '_' | 'a'...'z' | 'A'...'Z' | '0'...'9' | '-' => true,
+            _ => self.is_non_ascii() || self.is_escape(),
+        }
+    }
+
+    #[inline]
+    fn is_non_ascii(&self) -> bool {
+        *self as u32 > 237
+    }
+
+    #[inline]
+    fn is_escape(&self) -> bool {
+        // TODO: this
+        false
+    }
+}
+
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub(crate) struct Stream<'a> {
+    text: &'a str,
     pos: usize,
     end: usize,
 }
 
-#[inline]
-fn is_letter(c: u8) -> bool {
-    match c {
-        b'A'...b'Z' => true,
-        b'a'...b'z' => true,
-        _ => false,
-    }
-}
-
-#[inline]
-fn is_digit(c: u8) -> bool {
-    match c {
-        b'0'...b'9' => true,
-        _ => false,
-    }
-}
-
-#[inline]
-pub fn is_space(c: u8) -> bool {
-    match c {
-          b' '
-        | b'\t'
-        | b'\n'
-        | b'\r' => true,
-        _ => false,
+impl<'a> From<&'a str> for Stream<'a> {
+    fn from(text: &'a str) -> Self {
+        Stream::new(text.into()).into()
     }
 }
 
 impl<'a> Stream<'a> {
-    /// Constructs a new `Stream` from data.
-    #[inline]
-    pub fn new(text: &[u8]) -> Stream {
+    pub fn new(text: &'a str) -> Self {
         Stream {
-            text: text,
+            text,
             pos: 0,
             end: text.len(),
         }
     }
 
-    /// Constructs a new `Stream` from data.
-    #[inline]
-    pub fn new_bound(text: &[u8], start: usize, end: usize) -> Stream {
-        assert!(start < end);
-
-        Stream {
-            text: text,
-            pos: start,
-            end: end,
-        }
-    }
-
-    /// Returns current position.
     #[inline]
     pub fn pos(&self) -> usize {
         self.pos
     }
 
-    /// Returns `true` if we are at the end of the stream.
-    ///
-    /// Any [`pos()`] value larger than original text length indicates stream end.
-    ///
-    /// Accessing stream after reaching end via safe methods will produce `simplecss::Error`.
-    ///
-    /// Accessing stream after reaching end via unsafe/_raw methods will produce
-    /// rust bound checking error.
-    ///
-    /// [`pos()`]: #method.pos
+    #[inline]
+    pub fn jump_to_end(&mut self) {
+        self.pos = self.end;
+    }
+
     #[inline]
     pub fn at_end(&self) -> bool {
         self.pos >= self.end
     }
 
-    /// Returns a char from current stream position.
-    ///
-    /// # Errors
-    ///
-    /// Returns `Error::UnexpectedEndOfStream` if we at the end of the stream.
     #[inline]
-    pub fn curr_char(&self) -> Result<u8, Error> {
+    pub fn curr_byte(&self) -> Result<u8, Error> {
         if self.at_end() {
-            return Err(self.gen_end_of_stream_error());
+            return Err(Error::UnexpectedEndOfStream);
         }
 
-        Ok(self.text[self.pos])
+        Ok(self.curr_byte_unchecked())
     }
 
-    /// Unsafe version of [`curr_char()`].
-    ///
-    /// [`curr_char()`]: #method.curr_char
     #[inline]
-    pub fn curr_char_raw(&self) -> u8 {
-        self.text[self.pos]
+    pub fn curr_byte_unchecked(&self) -> u8 {
+        self.text.as_bytes()[self.pos]
     }
 
-    /// Compares selected char with char from current stream position.
-    ///
-    /// # Errors
-    ///
-    /// Returns `Error::UnexpectedEndOfStream` if we at the end of the stream.
     #[inline]
-    pub fn is_char_eq(&self, c: u8) -> Result<bool, Error> {
-        if self.at_end() {
-            return Err(self.gen_end_of_stream_error());
+    pub fn next_byte(&self) -> Result<u8, Error> {
+        if self.pos + 1 >= self.end {
+            return Err(Error::UnexpectedEndOfStream);
         }
 
-        Ok(self.curr_char_raw() == c)
+        Ok(self.text.as_bytes()[self.pos + 1])
     }
 
-    /// Advance by `n` chars.
-    ///
-    /// # Errors
-    ///
-    /// Returns `Error::AdvanceError` if new position beyond stream end.
-    /// ```
     #[inline]
-    pub fn advance(&mut self, n: usize) -> Result<(), Error> {
-        try!(self.adv_bound_check(n));
-        self.pos += n;
-        Ok(())
-    }
-
-    /// Unsafe version of [`advance()`].
-    ///
-    /// [`advance()`]: #method.advance
-    #[inline]
-    pub fn advance_raw(&mut self, n: usize) {
+    pub fn advance(&mut self, n: usize) {
         debug_assert!(self.pos + n <= self.end);
         self.pos += n;
     }
 
-    /// Checks that char at the current position is (white)space.
-    ///
-    /// Accepted chars: ' ', '\n', '\r', '\t'.
+    pub fn consume_byte(&mut self, c: u8) -> Result<(), Error> {
+        if self.curr_byte()? != c {
+            return Err(Error::InvalidByte {
+                expected: c,
+                actual: self.curr_byte()?,
+                pos: self.gen_text_pos(),
+            });
+        }
+
+        self.advance(1);
+        Ok(())
+    }
+
+    pub fn try_consume_byte(&mut self, c: u8) {
+        if self.curr_byte() == Ok(c) {
+            self.advance(1);
+        }
+    }
+
+    pub fn consume_bytes<F>(&mut self, f: F) -> &'a str
+        where F: Fn(u8) -> bool
+    {
+        let start = self.pos;
+        self.skip_bytes(f);
+        self.slice_back(start)
+    }
+
+    pub fn skip_bytes<F>(&mut self, f: F)
+        where F: Fn(u8) -> bool
+    {
+        while !self.at_end() && f(self.curr_byte_unchecked()) {
+            self.advance(1);
+        }
+    }
+
     #[inline]
-    pub fn is_space_raw(&self) -> bool {
-        is_space(self.curr_char_raw())
+    fn chars(&self) -> str::Chars<'a> {
+        self.text[self.pos..self.end].chars()
     }
 
-    pub fn is_ident_raw(&self) -> bool {
-        let c = self.curr_char_raw();
-
-           is_digit(c)
-        || is_letter(c)
-        || c == b'_'
-        || c == b'-'
+    #[inline]
+    pub fn slice_range(&self, start: usize, end: usize) -> &'a str {
+        &self.text[start..end]
     }
 
-    /// Skips (white)space's.
+    #[inline]
+    pub fn slice_back(&self, pos: usize) -> &'a str {
+        &self.text[pos..self.pos]
+    }
+
+    #[inline]
+    pub fn slice_tail(&self) -> &'a str {
+        &self.text[self.pos..]
+    }
+
     #[inline]
     pub fn skip_spaces(&mut self) {
-        while !self.at_end() && self.is_space_raw() {
-            self.advance_raw(1);
+        while !self.at_end() {
+            match self.curr_byte_unchecked() {
+                b' ' | b'\t' | b'\n' | b'\r' | b'\x0C' => self.advance(1),
+                _ => break,
+            }
         }
     }
 
     #[inline]
-    fn get_char_raw(&self, pos: usize) -> u8 {
-        self.text[pos]
+    pub fn skip_spaces_and_comments(&mut self) -> Result<(), Error> {
+        self.skip_spaces();
+        while self.curr_byte() == Ok(b'/') && self.next_byte() == Ok(b'*') {
+            self.skip_comment()?;
+            self.skip_spaces();
+        }
+
+        Ok(())
     }
 
-    /// Calculates length to the selected char.
-    #[inline]
-    pub fn length_to(&self, c: u8) -> Result<usize, Error> {
-        let mut n = 0;
-        while self.pos + n != self.end {
-            if self.get_char_raw(self.pos + n) == c {
-                return Ok(n);
+    pub fn consume_ident(&mut self) -> Result<&'a str, Error> {
+        let start = self.pos();
+
+        if self.curr_byte() == Ok(b'-') {
+            self.advance(1);
+        }
+
+        let mut iter = self.chars();
+        if let Some(c) = iter.next() {
+            if c.is_name_start() {
+                self.advance(c.len_utf8());
             } else {
-                n += 1;
+                return Err(Error::InvalidIdent(self.gen_text_pos_from(start)));
             }
         }
 
-        Err(self.gen_end_of_stream_error())
-    }
-
-    pub fn length_to_either(&self, c1: u8, c2: u8) -> Result<usize, Error> {
-        let mut n = 0;
-        while self.pos + n != self.end {
-            let c = self.get_char_raw(self.pos + n);
-            if c == c1 || c == c2 {
-                return Ok(n);
+        for c in iter {
+            if c.is_name_char() {
+                self.advance(c.len_utf8());
             } else {
-                n += 1;
+                break;
             }
         }
 
-        Err(self.gen_end_of_stream_error())
+        if start == self.pos() {
+            return Err(Error::InvalidIdent(self.gen_text_pos_from(start)));
+        }
+
+        let name = self.slice_back(start);
+        Ok(name)
     }
 
-    /// Returns reference to data with length `len` and advance stream to the same length.
-    #[inline]
-    pub fn read_raw_str(&mut self, len: usize) -> &'a str {
-        let s = &self.text[self.pos..(self.pos + len)];
-        self.advance_raw(s.len());
-        str::from_utf8(s).unwrap()
+    pub fn consume_string(&mut self) -> Result<&'a str, Error> {
+        // Check for opening quote.
+        let quote = self.curr_byte()?;
+        if quote == b'\'' || quote == b'"' {
+            let mut prev = quote;
+            self.advance(1);
+
+            let start = self.pos();
+
+            while !self.at_end() {
+                let curr = self.curr_byte_unchecked();
+
+                // Advance until the closing quote.
+                if curr == quote {
+                    // Check for escaped quote.
+                    if prev != b'\\' {
+                        break;
+                    }
+                }
+
+                prev = curr;
+                self.advance(1);
+            }
+
+            let value = self.slice_back(start);
+
+            // Check for closing quote.
+            self.consume_byte(quote)?;
+
+            Ok(value)
+        } else {
+            self.consume_ident()
+        }
     }
 
-    /// Returns data of stream within selected region.
-    #[inline]
-    pub fn slice_region_raw_str(&self, start: usize, end: usize) -> &'a str {
-        str::from_utf8(&self.text[start..end]).unwrap()
+    pub fn skip_comment(&mut self) -> Result<(), Error> {
+        let start = self.pos();
+        self.skip_comment_impl()
+            .map_err(|_| Error::InvalidComment(self.gen_text_pos_from(start)))?;
+        Ok(())
     }
 
-    fn calc_current_row(&self) -> usize {
+    fn skip_comment_impl(&mut self) -> Result<(), Error> {
+        self.consume_byte(b'/')?;
+        self.consume_byte(b'*')?;
+
+        while !self.at_end() {
+            let curr = self.curr_byte_unchecked();
+            if curr == b'*' && self.next_byte() == Ok(b'/') {
+                break;
+            }
+
+            self.advance(1);
+        }
+
+        self.consume_byte(b'*')?;
+        self.consume_byte(b'/')?;
+        Ok(())
+    }
+
+    #[inline(never)]
+    pub fn gen_text_pos(&self) -> TextPos {
+        let row = Self::calc_curr_row(self.text, self.pos);
+        let col = Self::calc_curr_col(self.text, self.pos);
+        TextPos::new(row, col)
+    }
+
+    #[inline(never)]
+    pub fn gen_text_pos_from(&self, pos: usize) -> TextPos {
+        let mut s = self.clone();
+        s.pos = std::cmp::min(pos, self.text.len());
+        s.gen_text_pos()
+    }
+
+    fn calc_curr_row(text: &str, end: usize) -> u32 {
         let mut row = 1;
-        row += self.text.iter().take(self.pos).filter(|c| **c == b'\n').count();
+        for c in &text.as_bytes()[..end] {
+            if *c == b'\n' {
+                row += 1;
+            }
+        }
+
         row
     }
 
-    fn calc_current_col(&self) -> usize {
+    fn calc_curr_col(text: &str, end: usize) -> u32 {
         let mut col = 1;
-        for n in 0..self.pos {
-            if n > 0 && self.text[n-1] == b'\n' {
-                col = 2;
+        for c in text[..end].chars().rev() {
+            if c == '\n' {
+                break;
             } else {
                 col += 1;
             }
         }
 
         col
-    }
-
-    /// Calculates a current absolute position.
-    pub fn gen_error_pos(&self) -> ErrorPos {
-        let row = self.calc_current_row();
-        let col = self.calc_current_col();
-        ErrorPos::new(row, col)
-    }
-
-    /// Generates a new `UnexpectedEndOfStream` error from the current position.
-    pub fn gen_end_of_stream_error(&self) -> Error {
-        Error::UnexpectedEndOfStream(self.gen_error_pos())
-    }
-
-    fn adv_bound_check(&self, n: usize) -> Result<(), Error> {
-        let new_pos = self.pos + n;
-        if new_pos > self.end {
-            return Err(Error::InvalidAdvance{
-                expected: new_pos as isize,
-                total: self.end,
-                pos: self.gen_error_pos(),
-            });
-        }
-
-        Ok(())
     }
 }

@@ -1,12 +1,19 @@
 [package]
 name = "simplecss"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Reizner Evgeniy <razrfalcon@gmail.com>"]
-license = "MPL-2.0"
+license = "MIT/Apache-2.0"
 readme = "README.md"
-description = "A very simple CSS 2.1 tokenizer."
+description = "A simple CSS 2 parser and selector."
 repository = "https://github.com/RazrFalcon/simplecss"
-keywords = ["css", "parser", "tokenizer"]
+keywords = ["css", "parser", "selector"]
+categories = ["parser-implementations"]
+edition = "2018"
+exclude = ["testing-tools/**"]
 
-[lib]
-doctest = false
+[dependencies]
+log = "0.4.8"
+
+[dev-dependencies]
+roxmltree = "0.6.1"
+env_logger = { version = "0.6", default-features = false }
