@@ -144,12 +144,12 @@ tokenize!(tokenize_34, "*zoom:1;",
     declare("zoom", "1")
 );
 
-//tokenize!(at_rule, "@unsupported { splines: reticulating } color: green",
+//tokenize!(tokenize_, "@unsupported { splines: reticulating } color: green",
 //    declare("color", "green")
 //);
 
-//tokenize!(tokenize_35, "/*\\*/*/color: red;", declare("color", "red"));
+//tokenize!(tokenize_, "/*\\*/*/color: red;", declare("color", "red"));
 
-//tokenize!(tokenize_35, "\"this is a string]}\"\"[{\\\"'\";  /*should be parsed as a string but be ignored*/
+//tokenize!(tokenize_, "\"this is a string]}\"\"[{\\\"'\";  /*should be parsed as a string but be ignored*/
 //    {{}}[]'';                     /*should be parsed as nested blocks and a string but be ignored*/
 //    color: red;", declare("color", "red"));

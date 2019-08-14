@@ -2,7 +2,7 @@ struct XmlNode<'a, 'input: 'a>(roxmltree::Node<'a, 'input>);
 
 impl<'a, 'input: 'a> XmlNode<'a, 'input> {
     fn select(&self, text: &str) -> Option<roxmltree::Node<'a, 'input>> {
-        let selectors = simplecss::Selector::parse(text).unwrap();
+        let selectors = simplecss::Selector::parse(text)?;
         for node in self.0.descendants().filter(|n| n.is_element()) {
             if selectors.matches(&XmlNode(node)) {
                 return Some(node);

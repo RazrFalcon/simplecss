@@ -127,3 +127,9 @@ fn style_20() {
     ");
     assert_eq!(style.to_string(), "h1 { color:green; }\nh4 { color:black; }");
 }
+
+#[test]
+fn style_21() {
+    let style = StyleSheet::parse(":le>*");
+    assert_eq!(style.to_string(), "");
+}

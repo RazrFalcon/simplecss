@@ -150,7 +150,10 @@ impl<'a> Selector<'a> {
 
     /// Checks that the provided element matches the current selector.
     pub fn matches<E: Element>(&self, element: &E) -> bool {
-        assert!(!self.components.is_empty());
+        assert!(!self.components.is_empty(), "selector must not be empty");
+        assert_eq!(self.components[0].combinator, Combinator::None,
+                   "the first component must not have a combinator");
+
         self.matches_impl(self.components.len() - 1, element)
     }
 
@@ -297,8 +300,8 @@ pub(crate) fn parse(text: &str) -> (Option<Selector>, usize) {
                     "active" => PseudoClass::Active,
                     "focus" => PseudoClass::Focus,
                     _ => {
-                        warn!("':{}' is not supported. Skipped.", ident);
-                        continue;
+                        warn!("':{}' is not supported. Selector skipped.", ident);
+                        return (None, tokenizer.stream.pos());
                     }
                 };
 
@@ -323,6 +326,11 @@ pub(crate) fn parse(text: &str) -> (Option<Selector>, usize) {
     }
 
     if components.is_empty() {
+        (None, tokenizer.stream.pos())
+    } else if components[0].combinator != Combinator::None {
+        debug_assert_eq!(components[0].combinator, Combinator::None,
+                         "the first component must not have a combinator");
+
         (None, tokenizer.stream.pos())
     } else {
         (Some(Selector { components }), tokenizer.stream.pos())

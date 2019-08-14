@@ -15,5 +15,5 @@ exclude = ["testing-tools/**"]
 log = "0.4.8"
 
 [dev-dependencies]
-roxmltree = "0.6.1"
 env_logger = { version = "0.6", default-features = false }
+roxmltree = "0.7"
