@@ -15,6 +15,7 @@ Since it's very simple we will start with limitations:
   In CSS like `* { width: 5px }` you will get a `width` property with a `5px` value as a string.
 - CDO/CDC comments are not supported.
 - Parser is case sensitive. All keywords must be lowercase.
+- Rule specifily is not supported.
 - Unicode escape, like `\26`, is not supported.
 
 ## Features
@@ -24,6 +25,8 @@ Since it's very simple we will start with limitations:
 - Has a high-level parsers and low-level, zero-allocation tokenizers.
 - No unsafe.
 */
+
+#![doc(html_root_url = "https://docs.rs/simplecss/0.2.0")]
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
