@@ -1,7 +1,9 @@
 ## simplecss
-[![Build Status](https://travis-ci.org/RazrFalcon/simplecss.svg?branch=master)](https://travis-ci.org/RazrFalcon/simplecss)
+![Build Status](https://github.com/RazrFalcon/simplecss/workflows/simplecss/badge.svg)
 [![Crates.io](https://img.shields.io/crates/v/simplecss.svg)](https://crates.io/crates/simplecss)
 [![Documentation](https://docs.rs/simplecss/badge.svg)](https://docs.rs/simplecss)
+[![Rust 1.37+](https://img.shields.io/badge/rust-1.37+-orange.svg)](https://www.rust-lang.org)
+![](https://img.shields.io/badge/unsafe-forbidden-brightgreen.svg)
 
 A simple [CSS 2.1](https://www.w3.org/TR/CSS21/) parser and selector.
 
