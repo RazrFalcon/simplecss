@@ -456,7 +456,7 @@ fn consume_term(s: &mut Stream) -> Result<(), Error> {
     fn consume_digits(s: &mut Stream) {
         while let Ok(c) = s.curr_byte() {
             match c {
-                b'0'...b'9' => s.advance(1),
+                b'0'..=b'9' => s.advance(1),
                 _ => break,
             }
         }
@@ -471,14 +471,14 @@ fn consume_term(s: &mut Stream) -> Result<(), Error> {
                     // Try consume as a hex color.
                     while let Ok(c) = s.curr_byte() {
                         match c {
-                            b'0'...b'9' | b'a'...b'f' | b'A'...b'F' => s.advance(1),
+                            b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F' => s.advance(1),
                             _ => break,
                         }
                     }
                 }
             }
         }
-        b'+' | b'-' | b'0'...b'9' | b'.' => {
+        b'+' | b'-' | b'0'..=b'9' | b'.' => {
             // Consume number.
 
             s.advance(1);
