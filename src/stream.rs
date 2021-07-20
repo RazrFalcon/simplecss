@@ -14,7 +14,7 @@ impl CssCharExt for char {
     #[inline]
     fn is_name_start(&self) -> bool {
         match *self {
-            '_' | 'a'...'z' | 'A'...'Z' => true,
+            '_' | 'a'..='z' | 'A'..='Z' => true,
             _ => self.is_non_ascii() || self.is_escape(),
         }
     }
@@ -22,7 +22,7 @@ impl CssCharExt for char {
     #[inline]
     fn is_name_char(&self) -> bool {
         match *self {
-            '_' | 'a'...'z' | 'A'...'Z' | '0'...'9' | '-' => true,
+            '_' | 'a'..='z' | 'A'..='Z' | '0'..='9' | '-' => true,
             _ => self.is_non_ascii() || self.is_escape(),
         }
     }
@@ -49,7 +49,7 @@ pub(crate) struct Stream<'a> {
 
 impl<'a> From<&'a str> for Stream<'a> {
     fn from(text: &'a str) -> Self {
-        Stream::new(text.into()).into()
+        Stream::new(text)
     }
 }
 
@@ -283,7 +283,7 @@ impl<'a> Stream<'a> {
 
     #[inline(never)]
     pub fn gen_text_pos_from(&self, pos: usize) -> TextPos {
-        let mut s = self.clone();
+        let mut s = *self;
         s.pos = std::cmp::min(pos, self.text.len());
         s.gen_text_pos()
     }
