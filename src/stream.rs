@@ -49,7 +49,7 @@ pub(crate) struct Stream<'a> {
 
 impl<'a> From<&'a str> for Stream<'a> {
     fn from(text: &'a str) -> Self {
-        Stream::new(text.into()).into()
+        Stream::new(text)
     }
 }
 
@@ -283,7 +283,7 @@ impl<'a> Stream<'a> {
 
     #[inline(never)]
     pub fn gen_text_pos_from(&self, pos: usize) -> TextPos {
-        let mut s = self.clone();
+        let mut s = *self;
         s.pos = std::cmp::min(pos, self.text.len());
         s.gen_text_pos()
     }

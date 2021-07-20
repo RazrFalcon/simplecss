@@ -242,6 +242,12 @@ impl fmt::Display for StyleSheet<'_> {
     }
 }
 
+impl<'a> Default for StyleSheet<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 fn consume_statement<'a>(s: &mut Stream<'a>, rules: &mut Vec<Rule<'a>>) -> Result<(), Error> {
     if s.curr_byte() == Ok(b'@') {
         s.advance(1);
@@ -295,8 +301,8 @@ fn consume_rule_set<'a>(s: &mut Stream<'a>, rules: &mut Vec<Rule<'a>>) -> Result
     s.try_consume_byte(b'{');
 
     let declarations = consume_declarations(s)?;
-    for i in start_rule_idx..rules.len() {
-        rules[i].declarations = declarations.clone();
+    for rule in rules.iter_mut().skip(start_rule_idx) {
+        rule.declarations = declarations.clone();
     }
 
     s.try_consume_byte(b'}');
@@ -454,11 +460,8 @@ fn consume_declaration<'a>(s: &mut Stream<'a>) -> Result<Declaration<'a>, Error>
 
 fn consume_term(s: &mut Stream) -> Result<(), Error> {
     fn consume_digits(s: &mut Stream) {
-        while let Ok(c) = s.curr_byte() {
-            match c {
-                b'0'..=b'9' => s.advance(1),
-                _ => break,
-            }
+        while let Ok(b'0'..=b'9') = s.curr_byte() {
+            s.advance(1);
         }
     }
 
