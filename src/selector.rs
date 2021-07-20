@@ -148,6 +148,28 @@ impl<'a> Selector<'a> {
         parse(text).0
     }
 
+    /// Compute the selector's specificity.
+    ///
+    /// Cf. https://www.w3.org/TR/selectors/#specificity.
+    pub fn specificity(&self) -> [u8; 3] {
+        let mut spec = [0u8; 3];
+
+        for selector in self.components.iter().map(|c| &c.selector) {
+            if matches!(selector.kind, SimpleSelectorType::Type(_)) {
+                spec[2] = spec[2].saturating_add(1);
+            }
+
+            for sub in &selector.subselectors {
+                match sub {
+                    SubSelector::Attribute("id", _) => spec[0] = spec[0].saturating_add(1),
+                    _ => spec[1] = spec[1].saturating_add(1),
+                }
+            }
+        }
+
+        spec
+    }
+
     /// Checks that the provided element matches the current selector.
     pub fn matches<E: Element>(&self, element: &E) -> bool {
         assert!(!self.components.is_empty(), "selector must not be empty");
