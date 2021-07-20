@@ -26,6 +26,7 @@ Since it's very simple we will start with limitations:
 ### Features
 
 - Selector matching support.
+- The rules are sorted by specificity.
 - `!import` parsing support.
 - Has a high-level parsers and low-level, zero-allocation tokenizers.
 - No unsafe.

@@ -20,6 +20,7 @@ Since it's very simple we will start with limitations:
 ## Features
 
 - Selector matching support.
+- The rules are sorted by specificity.
 - `!import` parsing support.
 - Has a high-level parsers and low-level, zero-allocation tokenizers.
 - No unsafe.
@@ -213,10 +214,8 @@ impl<'a> StyleSheet<'a> {
 
         // Remove empty rules.
         self.rules.retain(|rule| !rule.declarations.is_empty());
-    }
 
-    /// Sort the rules by specificity.
-    pub fn sort(&mut self) {
+        // Sort the rules by specificity.
         self.rules.sort_by_cached_key(|rule| rule.selector.specificity());
     }
 }
