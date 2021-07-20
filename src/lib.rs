@@ -21,12 +21,12 @@ Since it's very simple we will start with limitations:
 
 - Selector matching support.
 - The rules are sorted by specificity.
-- `!import` parsing support.
+- `!important` parsing support.
 - Has a high-level parsers and low-level, zero-allocation tokenizers.
 - No unsafe.
 */
 
-#![doc(html_root_url = "https://docs.rs/simplecss/0.2.0")]
+#![doc(html_root_url = "https://docs.rs/simplecss/0.2.1")]
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
