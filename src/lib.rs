@@ -26,7 +26,7 @@ Since it's very simple we will start with limitations:
 - No unsafe.
 */
 
-#![doc(html_root_url = "https://docs.rs/simplecss/0.2.0")]
+#![doc(html_root_url = "https://docs.rs/simplecss/0.2.1")]
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
