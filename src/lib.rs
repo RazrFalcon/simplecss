@@ -169,12 +169,36 @@ pub struct Rule<'a> {
 pub struct StyleSheet<'a> {
     /// A list of rules.
     pub rules: Vec<Rule<'a>>,
+    /// Parsing options.
+    pub options: ParsingOptions,
+}
+
+/// Parsing options.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct ParsingOptions {
+    /// Only sort the new rules in `StyleSheet::parse_more`.
+    ///
+    /// Default: false
+    pub local_sort: bool,
+}
+
+impl Default for ParsingOptions {
+    fn default() -> Self {
+        ParsingOptions {
+            local_sort: false,
+        }
+    }
 }
 
 impl<'a> StyleSheet<'a> {
     /// Creates an empty style sheet.
     pub fn new() -> Self {
-        StyleSheet { rules: Vec::new() }
+        StyleSheet { rules: Vec::new(), options: ParsingOptions::default() }
+    }
+
+    /// Creates an empty style sheet with the specified parsing options.
+    pub fn with_options(options: ParsingOptions) -> Self {
+        StyleSheet { rules: Vec::new(), options }
     }
 
     /// Parses a style sheet from text.
@@ -194,6 +218,7 @@ impl<'a> StyleSheet<'a> {
 
     /// Parses a style sheet from a text to the current style sheet.
     pub fn parse_more(&mut self, text: &'a str) {
+        let mut rules = Vec::new();
         let mut s = Stream::from(text);
 
         if s.skip_spaces_and_comments().is_err() {
@@ -205,7 +230,7 @@ impl<'a> StyleSheet<'a> {
                 break;
             }
 
-            let _ = consume_statement(&mut s, &mut self.rules);
+            let _ = consume_statement(&mut s, &mut rules);
         }
 
         if !s.at_end() {
@@ -213,10 +238,19 @@ impl<'a> StyleSheet<'a> {
         }
 
         // Remove empty rules.
-        self.rules.retain(|rule| !rule.declarations.is_empty());
+        rules.retain(|rule| !rule.declarations.is_empty());
 
-        // Sort the rules by specificity.
-        self.rules.sort_by_cached_key(|rule| rule.selector.specificity());
+        // Locally sort the rules by specificity.
+        if self.options.local_sort {
+            rules.sort_by_cached_key(|rule| rule.selector.specificity());
+        }
+
+        self.rules.append(&mut rules);
+
+        // Globally sort the rules by specificity.
+        if !self.options.local_sort {
+            self.rules.sort_by_cached_key(|rule| rule.selector.specificity());
+        }
     }
 }
 
